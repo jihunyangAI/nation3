@@ -564,12 +564,14 @@ function startGame(id) {
   newGame(id, pendingScenario, pendingCustom);
   pendingCustom = null;
   sel = G.cities.find(c => c.owner === id).id;
+  if (typeof hideMenuBg === 'function') hideMenuBg();
   closeModal(); save(); render(); focusMap();
 }
 function continueGame() {
   if (!load()) return;
   const mine = G.cities.find(c => c.owner === G.player);
   sel = mine ? mine.id : 0;
+  if (typeof hideMenuBg === 'function') hideMenuBg();
   closeModal(); render(); focusMap();
   if (G.over) showOver();
 }
@@ -764,7 +766,7 @@ async function endTurn() {
 
 if (typeof document !== 'undefined') {
   UI = { battle: b => uiBattleEntry(b), captive: (o, f) => uiCaptive(o, f) };
-  window.addEventListener('DOMContentLoaded', () => { initMap(); showStart(); });
+  window.addEventListener('DOMContentLoaded', () => { initMap(); showTitle(); });
   document.addEventListener('keydown', e => {
     if ((e.key === 'e' || e.key === 'E') && G && $('modal').classList.contains('hidden')) endTurn();
   });

@@ -80,6 +80,61 @@
   .mapback { display:none; }
   html { -webkit-text-size-adjust:100%; }
   button, .field { touch-action:manipulation; }
+  html.titling, html.titling body { overflow:hidden; }
+  #title { --c:min(42vh,27vw); --pan:calc((max(100vw,177.78vh) - 100vw) * .42); position:fixed; inset:0; z-index:30; overflow:hidden; background:#0b0705; color:#f3e3bd; cursor:pointer; user-select:none; -webkit-user-select:none; transition:opacity .75s ease; }
+  #title.leaving { opacity:0; pointer-events:none; }
+  #tMural { position:absolute; left:50%; top:50%; width:max(100vw,177.78vh); height:max(56.25vw,100vh); opacity:0; transform:translate(-50%,-50%) scale(1.03); transition:opacity 1.5s ease; }
+  #title.on #tMural { opacity:1; animation:tDrift 46s ease-in-out infinite alternate; }
+  @keyframes tDrift { from { transform:translate(calc(-50% - var(--pan)),-50%) scale(1.03); } to { transform:translate(calc(-50% + var(--pan)),-50%) scale(1.09); } }
+  .tShade { position:absolute; inset:0; background:radial-gradient(ellipse 62% 48% at 50% 36%,rgba(12,6,3,.74),rgba(12,6,3,.34) 68%,rgba(12,6,3,.12)),linear-gradient(180deg,rgba(10,5,3,.5),rgba(10,5,3,.06) 42%,rgba(10,5,3,.16) 66%,rgba(10,5,3,.74)); }
+  .tFire { position:absolute; inset:0; mix-blend-mode:soft-light; background:radial-gradient(ellipse 80% 54% at 50% 100%,rgba(255,116,38,.75),transparent 72%); animation:tFlicker 3.7s ease-in-out infinite; }
+  @keyframes tFlicker { 0%,100% { opacity:.62; } 22% { opacity:.86; } 41% { opacity:.56; } 67% { opacity:.94; } 83% { opacity:.68; } }
+  .tEmbers { position:absolute; inset:0; pointer-events:none; }
+  .tEmbers i { position:absolute; bottom:-12px; width:4px; height:4px; border-radius:50%; background:#ffb65c; box-shadow:0 0 7px 2px rgba(255,120,40,.72); animation:tEmber 9s linear infinite; }
+  @keyframes tEmber { 0% { transform:translate(0,0) scale(1); opacity:0; } 10% { opacity:.95; } 72% { opacity:.62; } 100% { transform:translate(var(--dx),-104vh) scale(.28); opacity:0; } }
+  .tStage { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:clamp(4px,1.6vh,16px); padding:max(10px,env(safe-area-inset-top)) 16px max(26px,env(safe-area-inset-bottom)); }
+  .tChars { position:relative; display:flex; margin:0; font-size:inherit; }
+  .tGlyph { display:block; width:var(--c); height:var(--c); overflow:visible; }
+  #title.written .tGlyph { filter:drop-shadow(0 0 14px rgba(255,180,76,.5)); }
+  .tSeal { position:absolute; right:calc(var(--c) * -.11); bottom:calc(var(--c) * -.05); width:calc(var(--c) * .24); height:calc(var(--c) * .24); opacity:0; }
+  #title.sealed .tSeal { animation:tStamp .42s cubic-bezier(.2,.8,.3,1) forwards; }
+  @keyframes tStamp { from { opacity:0; transform:scale(2.7) rotate(-8deg); } 62% { opacity:1; transform:scale(.93) rotate(2deg); } to { opacity:1; transform:scale(1) rotate(2deg); } }
+  #title.sealed .tChars { animation:tThud .34s ease-out .17s; }
+  @keyframes tThud { 0%,100% { transform:none; } 30% { transform:translateY(4px); } 62% { transform:translateY(-2px); } }
+  .tName,.tSub,.tBtns { opacity:0; transform:translateY(10px); transition:opacity .7s ease,transform .7s ease; }
+  .tName { margin:0; color:#e9c675; font:700 clamp(13px,2.5vmin,21px) Georgia,"Times New Roman",serif; letter-spacing:.62em; padding-left:.62em; text-shadow:0 2px 5px #000; }
+  .tSub { margin:0; font:clamp(14px,2.7vmin,23px) "Batang","Nanum Myeongjo","AppleMyungjo",serif; letter-spacing:.14em; text-align:center; text-shadow:0 2px 6px #000,0 0 14px #000; word-break:keep-all; }
+  .tBtns { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; pointer-events:none; }
+  #title.ready .tName,#title.ready .tSub,#title.ready .tBtns { opacity:1; transform:none; }
+  #title.ready .tBtns { pointer-events:auto; transition-delay:.18s; }
+  #tGo { min-height:48px; padding:11px 34px; color:#fff1cb; background:linear-gradient(#9d2b1e,#671810); border:1px solid #e3bd69; border-radius:3px; box-shadow:0 0 0 3px rgba(20,8,4,.75),0 0 0 4px #9f7c39,0 7px 22px rgba(0,0,0,.72); font:700 clamp(16px,2.9vmin,22px) "Batang","Nanum Myeongjo","AppleMyungjo",serif; letter-spacing:.2em; }
+  #tGo:hover:not(:disabled) { background:linear-gradient(#bd3525,#7e2015); border-color:#ffe09a; }
+  #tGo:focus-visible,#tSnd:focus-visible { outline:2px solid #fff0bd; outline-offset:5px; }
+  #tSnd { min-height:44px; color:#e8d7b0; background:rgba(20,11,6,.72); border-color:#7a6236; }
+  .tHint { position:absolute; left:0; right:0; bottom:max(7px,env(safe-area-inset-bottom)); margin:0; text-align:center; color:#d9c8a2; font-size:12px; opacity:.72; text-shadow:0 1px 3px #000; transition:opacity .4s; pointer-events:none; }
+  #title.written .tHint { opacity:0; }
+  #title::after { content:""; position:absolute; inset:0; background:rgba(10,5,3,.34); opacity:0; pointer-events:none; transition:opacity .7s ease; }
+  #title.menu { z-index:9; cursor:default; }
+  #title.menu::after { opacity:1; }
+  #title.menu #tMural { animation-play-state:paused; }
+  #title.menu .tFire { animation-play-state:paused; }
+  #title.menu .tEmbers, #title.menu .tHint { display:none; }
+  #title.menu .tStage { opacity:0; visibility:hidden; transition:opacity .45s ease,visibility 0s .45s; }
+  #modal.menu { background:transparent; }
+  #modal.menu #modalBox { background:rgba(24,15,9,.58); -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px); border:1px solid rgba(227,189,105,.78); border-radius:4px; box-shadow:0 0 0 1px rgba(20,8,4,.8),0 0 0 4px rgba(20,8,4,.34),0 18px 54px rgba(0,0,0,.62); animation:tPanel .55s ease both; }
+  @keyframes tPanel { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+  #modal.menu h2 { color:#f0cf82; font-family:"Batang","Nanum Myeongjo","AppleMyungjo",serif; font-size:21px; letter-spacing:.08em; text-shadow:0 1px 4px #000; }
+  #modal.menu .dim, #modal.menu .fbtn small { color:#d8cbb0; }
+  #modal.menu button { background:rgba(36,24,15,.56); border-color:rgba(190,154,88,.62); text-shadow:0 1px 2px #000; }
+  #modal.menu button:hover:not(:disabled) { background:rgba(122,52,31,.78); border-color:#f0cf82; }
+  #modal.menu input, #modal.menu select { background:rgba(12,7,4,.72) !important; }
+  @media (orientation:portrait) {
+    #title { --c:min(23vh,54vw); }
+    .tChars { flex-direction:column; }
+    .tGlyph + .tGlyph { margin-top:calc(var(--c) * -.05); }
+    .tSeal { right:calc(var(--c) * -.26); bottom:calc(var(--c) * .03); }
+  }
+  @media (prefers-reduced-motion:reduce) { #title.on #tMural,.tFire,.tEmbers i { animation:none; } .tEmbers { display:none; } }
   @media (max-width:760px) {
     body { font-size:13px; }
     header { position:sticky; top:env(safe-area-inset-top, 0px); z-index:5; gap:4px 8px; }
@@ -133,5 +188,6 @@
 <script src="systems.js"></script>
 <script src="features.js"></script>
 <script src="battle.js"></script>
+<script src="title.js"></script>
 </body>
 </html>

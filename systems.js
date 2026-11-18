@@ -569,6 +569,7 @@ const cmdIcon = k => (CMD_ICONS[k] ? `<svg class="cicon" width="20" height="20" 
 // ===================== 화면: 시작 =====================
 let pendingScenario = 's194', pendingCustom = null;
 function showStart() {
+  if (typeof showMenuBg === 'function') showMenuBg();
   let has = false;
   try { has = !!localStorage.getItem(SAVE_KEY); } catch (e) { /* 무시 */ }
   openModal(`<h2>nation3</h2><p class="dim">시대를 고르세요. 모든 도시를 손에 넣으면 천하통일입니다.</p>
