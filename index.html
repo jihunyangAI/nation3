@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nation3</title>
+<style>
+  :root { --bg:#1d1915; --panel:#2a241d; --line:#4a3f30; --ink:#efe6d2; --dim:#a89a80; --gold:#d9b25a; --red:#b3261e; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif; font-size:14px; }
+  header { display:flex; align-items:center; gap:16px; padding:8px 16px; background:#14110e; border-bottom:2px solid var(--line); flex-wrap:wrap; }
+  header h1 { margin:0; font-size:20px; color:var(--gold); letter-spacing:4px; font-family:"Batang","Nanum Myeongjo",serif; }
+  #date { font-size:16px; font-weight:bold; }
+  #summary { color:var(--dim); flex:1; }
+  main { display:flex; gap:12px; padding:12px; align-items:flex-start; flex-wrap:wrap; }
+  #mapwrap { position:relative; flex:3 1 520px; border:2px solid var(--line); border-radius:6px; overflow:hidden; background:#a9c9d2; }
+  #map { display:block; width:100%; height:auto; max-height:calc(100vh - 92px); cursor:grab; user-select:none; -webkit-user-select:none; }
+  #map .ns { vector-effect:non-scaling-stroke; }
+  #mapctl { position:absolute; right:8px; top:8px; display:flex; flex-direction:column; gap:4px; align-items:stretch; text-align:center; }
+  #mapctl button { padding:5px 8px; min-width:42px; background:#2a241dd9; }
+  #zoomLv { font-size:11px; color:#2b2418; font-weight:bold; }
+    .city { pointer-events:none; }
+  .cname { font-size:13px; font-weight:bold; fill:#2b2418; paint-order:stroke; stroke:#e9dfc6; stroke-width:3px; }
+  .region { font-family:"Batang","Nanum Myeongjo",serif; font-size:21px; font-weight:bold; fill:#6b4a1e; opacity:.32; letter-spacing:5px; }
+  .geo { font-family:"Batang","Nanum Myeongjo",serif; font-size:10.5px; font-style:italic; paint-order:stroke; stroke:#e6dab9; stroke-width:2px; }
+  .ctroop { font-size:11px; fill:#4a3b22; paint-order:stroke; stroke:#e9dfc6; stroke-width:3px; }
+  aside { flex:2 1 360px; display:flex; flex-direction:column; gap:12px; min-width:0; }
+  #cityPanel, #log { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:12px; }
+  #log { max-height:230px; overflow-y:auto; font-size:13px; line-height:1.6; }
+  #log span { color:var(--dim); font-size:11px; margin-right:4px; }
+  #log .war { color:#f0a58f; } #log .big { color:var(--gold); font-weight:bold; } #log .sys { color:#9fc3d6; }
+  h2 { margin:0 0 8px; font-size:18px; } h2 small { font-size:13px; color:var(--dim); font-weight:normal; margin-left:6px; }
+  h3 { margin:0 0 4px; font-size:15px; }
+  .dot { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:6px; border:1px solid #000; }
+  table { border-collapse:collapse; width:100%; }
+  .stats td { padding:3px 6px; } .stats td:nth-child(odd) { color:var(--dim); width:44px; white-space:nowrap; }
+  .stats a { color:var(--gold); cursor:pointer; margin-right:4px; text-decoration:underline; }
+  .bar { display:inline-block; width:60px; height:7px; background:#14110e; border-radius:4px; vertical-align:middle; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--gold); }
+  .offs { margin-top:10px; font-size:13px; }
+  .offs th { color:var(--dim); font-weight:normal; border-bottom:1px solid var(--line); padding:3px; }
+  .offs td { text-align:center; padding:3px; border-bottom:1px solid #352d23; }
+  .offs td:first-child { text-align:left; font-weight:bold; }
+  .offs .hi { color:var(--gold); font-weight:bold; }
+  .offs .acted { opacity:.45; }
+  .offs.pick tr:not(:first-child) { cursor:pointer; } .offs.pick tr:not(:first-child):hover { background:#3d3327; }
+  button { background:#3d3327; color:var(--ink); border:1px solid #6a5a42; border-radius:4px; padding:7px 12px; font:inherit; cursor:pointer; }
+  button:hover:not(:disabled) { background:#54452f; border-color:var(--gold); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.atk { background:#6b201a; border-color:#a8473c; } button.atk:hover:not(:disabled) { background:#8a2a22; }
+  button small { display:block; font-size:10px; color:var(--dim); }
+  .cmds { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-top:10px; }
+  .flash { margin-top:10px; padding:6px 10px; background:#3a3122; border-left:3px solid var(--gold); }
+  .dim { color:var(--dim); }
+  #modal { position:fixed; inset:0; background:rgba(0,0,0,.65); display:flex; align-items:center; justify-content:center; padding:16px; z-index:10; }
+  #modal.hidden { display:none; }
+  #modalBox { background:var(--panel); border:2px solid var(--gold); border-radius:8px; padding:18px; width:min(620px,100%); max-height:92vh; overflow-y:auto; }
+  #modalBox label { display:block; margin:8px 0; }
+  input[type=number], select { background:#14110e; color:var(--ink); border:1px solid #6a5a42; border-radius:4px; padding:5px 8px; font:inherit; }
+  input[type=number] { width:110px; }
+  .row { display:flex; gap:8px; margin-top:12px; }
+  .wide { width:100%; margin:8px 0; padding:10px; font-size:15px; }
+  .flist { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+  .fbtn { text-align:left; line-height:1.5; } .fbtn small { display:inline; font-size:12px; }
+  .checks { display:grid; grid-template-columns:1fr 1fr; gap:2px 12px; margin:8px 0; }
+  .checks label { margin:2px 0 !important; } .checks small { color:var(--dim); }
+  .armies { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .army { background:#1d1915; border:1px solid var(--line); border-radius:6px; padding:10px; line-height:1.6; }
+  .army.me { border-color:var(--gold); }
+  .army .big { font-size:22px; font-weight:bold; } .army .big small { font-size:12px; color:var(--dim); font-weight:normal; }
+  .blog { background:#14110e; border-radius:6px; padding:8px 10px; margin:10px 0; height:150px; overflow-y:auto; font-size:13px; line-height:1.6; }
+  #modalBox.big { width:min(860px,100%); }
+  .field { display:block; width:100%; height:auto; max-height:52vh; border:2px solid var(--line); cursor:pointer; }
+  .tg { font-size:17px; fill:#00000066; pointer-events:none; } .tu { font-size:13px; font-weight:bold; fill:#fff; pointer-events:none; } .tn { font-size:9.5px; fill:#fff; pointer-events:none; }
+  .blog.small { height:82px; }
+  .face { border:2px solid var(--gold); flex:none; }
+  #modalBox input:not([type=checkbox]):not([type=number]) { background:#14110e; color:var(--ink); border:1px solid #6a5a42; padding:5px 8px; font:inherit; }
+  .scene { display:block; width:100%; height:auto; border:2px solid var(--line); }
+  .cicon { display:block; margin:0 auto 3px; }
+  .mapback { display:none; }
+  html { -webkit-text-size-adjust:100%; }
+  button, .field { touch-action:manipulation; }
+  @media (max-width:760px) {
+    body { font-size:13px; }
+    header { position:sticky; top:env(safe-area-inset-top, 0px); z-index:5; gap:4px 8px; }
+    header h1 { font-size:16px; letter-spacing:1px; }
+    #date { font-size:14px; }
+    #summary { flex:1 1 100%; order:5; font-size:12px; }
+    header button { padding:6px 8px; }
+    #sndBtn { margin-left:auto; }
+    main { flex-direction:column; flex-wrap:nowrap; align-items:stretch; }
+    #mapwrap { flex:none; }
+    #map { max-height:none; }
+    #mapctl { flex-direction:row; top:auto; bottom:6px; right:6px; align-items:center; }
+    #mapctl button { min-width:36px; padding:6px; }
+    aside { flex:none; }
+    #cityPanel { scroll-margin-top:112px; overflow-x:auto; padding:10px; }
+    .mapback { display:inline-block; float:right; padding:4px 10px; font-size:13px; }
+    .bar { width:34px; }
+    .offs { font-size:12px; } .offs td, .offs th { padding:5px 2px; }
+    .cmds { grid-template-columns:repeat(4,1fr); } .cmds button { padding:9px 2px; }
+    .fieldwrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .field { width:560px; max-width:none; max-height:none; }
+    #modal { padding:8px; }
+    #modalBox { padding:12px; max-height:calc(100vh - 16px); max-height:calc(100dvh - 16px); }
+    input[type=number], select, #modalBox input:not([type=checkbox]) { font-size:16px; }
+    select { max-width:100%; }
+    .flist, .checks { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>nation3</h1>
+  <span id="date"></span>
+  <span id="summary"></span>
+  <button id="sndBtn" onclick="toggleSound()">소리 켜기</button>
+  <button onclick="showInfo()">정세</button>
+  <button onclick="showStart()">새 게임</button>
+  <button id="endBtn" onclick="endTurn()">턴 종료 ▶</button>
+</header>
+<main>
+  <div id="mapwrap"><svg id="map" viewBox="0 0 920 640" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="mapctl"><button onclick="mapZoom(1.5)" aria-label="확대">＋</button><span id="zoomLv">×1.0</span><button onclick="mapZoom(1/1.5)" aria-label="축소">－</button><button onclick="focusMap()">전체</button><button onclick="viewAt(111.6,34.1,3)">중원</button></div></div>
+  <aside>
+    <div id="cityPanel"></div>
+    <div id="log"></div>
+  </aside>
+</main>
+<div id="modal" class="hidden"><div id="modalBox"></div></div>
+<script src="map.js"></script>
+<script src="game.js"></script>
+<script src="systems.js"></script>
+<script src="features.js"></script>
+<script src="battle.js"></script>
+</body>
+</html>
