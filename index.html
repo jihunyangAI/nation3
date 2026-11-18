@@ -1,11 +1,14 @@
 <!doctype html>
-<html lang="ko">
+<html lang="ko" class="booting">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>nation3</title>
+<script>addEventListener('load',function(){document.documentElement.classList.remove('booting')})</script>
 <style>
   :root { --bg:#1d1915; --panel:#2a241d; --line:#4a3f30; --ink:#efe6d2; --dim:#a89a80; --gold:#d9b25a; --red:#b3261e; }
+  html.booting, html.booting body { background:#0b0705; }
+  html.booting header, html.booting main { visibility:hidden; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif; font-size:14px; }
   header { display:flex; align-items:center; gap:16px; padding:8px 16px; background:#14110e; border-bottom:2px solid var(--line); flex-wrap:wrap; }
