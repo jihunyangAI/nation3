@@ -318,16 +318,12 @@
     items.forEach(it => setStroke(it, 1));
     root.querySelectorAll('.tInk').forEach(g => g.removeAttribute('mask'));
   }
-  function drum(n) {
-    if (typeof bgmTimer === 'undefined' || !bgmTimer || !audioCtx) return;
-    for (let i = 0; i < n; i++) { tone(62, i * .24, .42, 'sine', .22); tone(120, i * .24, .1, 'triangle', .06); }
-  }
   function finish(instant) {
     if (done || !root) return;
     done = true; cancelAnimationFrame(raf); timers.forEach(clearTimeout); timers = [];
     revealAll(); root.classList.add('written');
     const step = instant ? 0 : 1;
-    later(() => { root.classList.add('sealed'); drum(1); }, 260 * step);
+    later(() => { root.classList.add('sealed'); warDrum(1); }, 260 * step);
     later(() => root.classList.add('ready'), 760 * step);
     later(() => { const b = $('tGo'); if (b) b.focus({ preventScroll: true }); }, 900 * step);
   }
@@ -345,7 +341,6 @@
     };
     raf = requestAnimationFrame(frame);
   }
-  function syncSound() { const b = $('tSnd'), s = $('sndBtn'); if (b && s) b.textContent = s.textContent; }
   let muralCache = null;
   function putMural(cv) {
     if (muralCache) { cv.getContext('2d').drawImage(muralCache, 0, 0); return; }
@@ -354,11 +349,11 @@
   function closeTitle() {
     if (!root || root.classList.contains('menu')) return;
     done = true; timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(raf);
-    drum(3); root.classList.add('menu'); showStart();
+    warDrum(3); root.classList.add('menu'); showStart();
   }
   // 시나리오·세력 선택 화면의 배경: 타이틀 벽화를 그대로 잇는다
   window.showMenuBg = function () {
-    $('modal').classList.add('menu');
+    $('modal').classList.add('menu'); setTitleMusic(true);
     if (root) { root.classList.add('menu'); return; }
     try {
       done = true;
@@ -370,7 +365,7 @@
     } catch (e) { /* 벽화 없이도 메뉴는 동작 */ }
   };
   window.hideMenuBg = function () {
-    $('modal').classList.remove('menu');
+    $('modal').classList.remove('menu'); setTitleMusic(false);
     document.documentElement.classList.remove('titling');
     if (!root) return;
     const el = root; root = null; el.classList.add('leaving');
@@ -387,7 +382,7 @@
           <svg class="tSeal" viewBox="0 0 1000 1000" aria-hidden="true"><rect x="30" y="30" width="940" height="940" rx="70" fill="#a3231a" stroke="#e7c489" stroke-width="22"/><rect x="85" y="85" width="830" height="830" rx="36" fill="none" stroke="#f3dfb8" stroke-width="16"/><g fill="#f7e8c8"><path transform="translate(125 95) scale(.75 .41)" d="${GLYPH['天']}"/><path transform="translate(125 500) scale(.75 .41)" d="${GLYPH['下']}"/></g></svg></h1>
           <p class="tName">NATION 3</p><p class="tSub">난세에 일어선 영웅들, 천하를 다투다</p>
           <div class="tBtns"><button id="tGo">천하로 나아가다</button><button id="tSnd"></button></div></div>
-        <p class="tHint">화면을 누르면 건너뜁니다</p>`;
+        <p class="tHint" id="tHint">화면을 누르면 건너뜁니다</p>`;
       document.body.appendChild(root); document.documentElement.classList.add('titling');
       root.querySelectorAll('.tGlyph').forEach((svg, i) => {
         const ch = TITLE_CHARS[i];
@@ -397,10 +392,10 @@
           const it = { el, len, w, ch }; items.push(it); setStroke(it, 0);
         });
       });
-      syncSound();
-      root.addEventListener('click', () => finish(true));
+      setTitleMusic(true);
+      root.addEventListener('click', () => { if (!takeUnlockTap()) finish(true); });
       $('tGo').addEventListener('click', e => { e.stopPropagation(); closeTitle(); });
-      $('tSnd').addEventListener('click', e => { e.stopPropagation(); toggleSound(); syncSound(); drum(2); });
+      $('tSnd').addEventListener('click', e => { e.stopPropagation(); toggleSound(); });
       const still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
       requestAnimationFrame(() => setTimeout(() => {
         if (!root) return;

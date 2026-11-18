@@ -113,6 +113,7 @@
   #tSnd { min-height:44px; color:#e8d7b0; background:rgba(20,11,6,.72); border-color:#7a6236; }
   .tHint { position:absolute; left:0; right:0; bottom:max(7px,env(safe-area-inset-bottom)); margin:0; text-align:center; color:#d9c8a2; font-size:12px; opacity:.72; text-shadow:0 1px 3px #000; transition:opacity .4s; pointer-events:none; }
   #title.written .tHint { opacity:0; }
+  #title .tHint.need { opacity:.95; color:#f4dfae; }
   #title::after { content:""; position:absolute; inset:0; background:rgba(10,5,3,.34); opacity:0; pointer-events:none; transition:opacity .7s ease; }
   #title.menu { z-index:9; cursor:default; }
   #title.menu::after { opacity:1; }
@@ -169,7 +170,7 @@
   <h1>nation3</h1>
   <span id="date"></span>
   <span id="summary"></span>
-  <button id="sndBtn" onclick="toggleSound()">소리 켜기</button>
+  <button id="sndBtn" onclick="toggleSound()">소리 끄기</button>
   <button onclick="showInfo()">정세</button>
   <button onclick="showStart()">새 게임</button>
   <button id="endBtn" onclick="endTurn()">턴 종료 ▶</button>
@@ -1726,36 +1727,6 @@ function portrait(o, size) {
   return `<svg class="face" width="${size}" height="${size}" viewBox="0 0 12 12" shape-rendering="crispEdges">${px.join('')}</svg>`;
 }
 
-let audioCtx = null, bgmTimer = null;
-function tone(freq, t, len, type, vol) {
-  const a = audioCtx, o = a.createOscillator(), g = a.createGain();
-  o.type = type; o.frequency.value = freq;
-  g.gain.setValueAtTime(vol, a.currentTime + t);
-  g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + t + len);
-  o.connect(g); g.connect(a.destination);
-  o.start(a.currentTime + t); o.stop(a.currentTime + t + len);
-}
-function sfx(kind) {
-  if (!bgmTimer) return;
-  if (kind === 'hit') tone(110, 0, 0.12, 'square', 0.06);
-  if (kind === 'fire') { tone(240, 0, 0.2, 'sawtooth', 0.05); tone(120, 0.08, 0.25, 'sawtooth', 0.04); }
-  if (kind === 'win') [523, 659, 784].forEach((f, i) => tone(f, i * 0.12, 0.2, 'square', 0.05));
-}
-function toggleSound() {
-  if (bgmTimer) { clearInterval(bgmTimer); bgmTimer = null; $('sndBtn').textContent = '소리 켜기'; return; }
-  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-  audioCtx.resume();
-  const scale = [220, 247, 294, 330, 392, 440, 494, 587], tune = [0, 2, 3, 5, 4, 3, 2, 0, 3, 4, 6, 5, 7, 5, 4, 2];
-  let i = 0;
-  const step = () => {
-    tone(scale[tune[i % tune.length]], 0, 0.32, 'triangle', 0.05);
-    if (i % 4 === 0) tone(scale[tune[i % tune.length] % 3] / 2, 0, 0.7, 'square', 0.018);
-    i++;
-  };
-  step(); bgmTimer = setInterval(step, 380);
-  $('sndBtn').textContent = '소리 끄기';
-}
-
 // ===================== 화면: 명령 아이콘 =====================
 const CMD_ICONS = {
   farm: '<rect x="1" y="11" width="14" height="4" fill="#8a5a2c"/><path d="M2 12h2v1H2zM7 13h2v1H7zM12 12h2v1h-2z" fill="#5f3d1c"/><rect x="7" y="5" width="2" height="6" fill="#5fae4c"/><path d="M8 7C5 7 3 5 3 2c3 0 5 2 5 5zM8 6c0-3 2-5 5-5 0 3-2 5-5 5z" fill="#7fcb62"/>',
@@ -2631,7 +2602,7 @@ function tbClick(x, y) {
   if (s.winner) return;
   if (u && u.alive && u.side === me && v && v.side !== me) {
     const r = mode === 'fire' ? tbFire(s, u, v) : mode === 'conf' ? tbConfuse(s, u, v) : mode === 'duel' ? tbDuel(s, u, v) : tbAttack(s, u, v);
-    if (r) { sfx(mode === 'fire' ? 'fire' : 'hit'); TB.mode = null; return tbDraw(); }
+    if (r) { TB.mode = null; return tbDraw(); }
   }
   TB.mode = null;
   if (v) TB.sel = v.id;
@@ -2660,12 +2631,195 @@ function tbAuto() {
 function tbRetreat() { const { s, me } = TB; s.winner = other(me); tbNote(s, '아군이 전장에서 물러났습니다.'); tbDraw(); }
 function tbEnd() {
   const { s, resolve, me } = TB;
-  if (s.winner === me) sfx('win');
   tbApply(s);
   TB = null;
   $('modalBox').classList.remove('big');
   closeModal(); resolve();
 }
+
+</script>
+<script>
+// ===================== 소리 =====================
+// 타이틀과 시작 메뉴: 옛 중국풍 창작곡(오음음계, 칠현 뜯기 + 활현 + 전고 + 징)
+// 게임 진행 중: 버튼 클릭음만. 모든 소리는 파일 없이 브라우저에서 합성한다.
+const SOUND_KEY = 'nation3_sound', BEAT = 0.88, BAR = BEAT * 4;
+let audioCtx = null, audioMaster = null, soundOn = true, wantMusic = false, music = null, unlockTap = false;
+try { soundOn = localStorage.getItem(SOUND_KEY) !== 'off'; } catch (e) { /* 기본값 사용 */ }
+
+const midiHz = m => 440 * Math.pow(2, (m - 69) / 12);
+// [시작 박, 길이, 음]
+const TUNE = [
+  [[0, 3, 69], [3, .5, 67], [3.5, .5, 64]], [[0, 1.5, 62], [1.5, .5, 64], [2, 2, 67]],
+  [[0, 1, 69], [1, 1, 72], [2, 1.5, 74], [3.5, .5, 72]], [[0, 4, 69]],
+  [[0, 2, 76], [2, 1, 74], [3, 1, 72]], [[0, 1.5, 74], [1.5, .5, 72], [2, 2, 69]],
+  [[0, 1, 67], [1, .5, 69], [1.5, .5, 67], [2, 1, 64], [3, 1, 62]], [[0, 4, 64]],
+  [[0, 1, 69], [1, 1, 72], [2, 2, 76]], [[0, 1.5, 79], [1.5, .5, 76], [2, 2, 74]],
+  [[0, 1, 76], [1, .5, 74], [1.5, .5, 72], [2, 1, 69], [3, 1, 72]], [[0, 4, 74]],
+  [[0, 1.5, 76], [1.5, .5, 79], [2, 2, 81]], [[0, 1, 79], [1, 1, 76], [2, 1, 74], [3, 1, 72]],
+  [[0, 1.5, 69], [1.5, .5, 72], [2, 1, 67], [3, 1, 64]], [[0, 4, 69]],
+];
+const ROOTS = [45, 43, 50, 45, 48, 50, 43, 40, 45, 43, 48, 50, 45, 48, 40, 45];
+const ARP = [[0, 0], [1, 1], [1.5, 2], [2, 3], [3, 2], [3.5, 1]];
+
+const pluckCache = {};
+function pluckBuffer(c, midi) {
+  const key = c.sampleRate + ':' + midi;
+  if (pluckCache[key]) return pluckCache[key];
+  const sr = c.sampleRate, f = midiHz(midi), n = Math.max(2, Math.round(sr / f)), len = Math.floor(sr * 3), line = new Float32Array(n);
+  let last = 0, seed = midi * 7919 + 13;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 1073741823.5 - 1; };
+  for (let i = 0; i < n; i++) { last = last * .55 + rnd() * .45; line[i] = last; }
+  const buf = c.createBuffer(1, len, sr), d = buf.getChannelData(0), keep = midi < 52 ? .9975 : .9962;
+  for (let i = 0, p = 0; i < len; i++) {
+    const q = (p + 1) % n, v = line[p]; d[i] = v;
+    line[p] = keep * (.5 * v + .5 * line[q]); p = q;
+  }
+  for (let i = 0; i < 90 && i < len; i++) d[i] *= i / 90;
+  return (pluckCache[key] = { buf, rate: f * (n - .5) / sr });
+}
+function noiseBuffer(c) {
+  if (c._noise) return c._noise;
+  const b = c.createBuffer(1, Math.floor(c.sampleRate * .4), c.sampleRate), d = b.getChannelData(0);
+  let s = 22222; for (let i = 0; i < d.length; i++) { s = (s * 16807) % 2147483647; d[i] = s / 1073741823.5 - 1; }
+  return (c._noise = b);
+}
+function musicGraph(c, dest) {
+  const bus = c.createGain(), wet = c.createGain(), rev = c.createConvolver(), sr = c.sampleRate, ir = c.createBuffer(2, Math.floor(sr * 2.6), sr);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch); let s = 4099 + ch * 991, lp = 0;
+    for (let i = 0; i < d.length; i++) { s = (s * 16807) % 2147483647; lp += ((s / 1073741823.5 - 1) - lp) * .32; d[i] = lp * Math.pow(1 - i / d.length, 3.2); }
+  }
+  rev.buffer = ir; wet.gain.value = .9; wet.connect(rev); rev.connect(bus); bus.connect(dest);
+  const send = v => { const g = c.createGain(); g.gain.value = v; g.connect(wet); return g; };
+  return { bus, dry: bus, pluck: send(.2), bow: send(.3), drum: send(.12), gong: send(.34) };
+}
+function route(node, out, send) { node.connect(out.dry); node.connect(send); }
+function playPluck(c, out, t, midi, vol) {
+  const p = pluckBuffer(c, midi), s = c.createBufferSource(), g = c.createGain(), lp = c.createBiquadFilter();
+  s.buffer = p.buf; s.playbackRate.value = p.rate; lp.type = 'lowpass'; lp.frequency.value = 2600;
+  g.gain.value = vol; s.connect(lp); lp.connect(g); route(g, out, out.pluck); s.start(t); s.stop(t + 3);
+}
+function playBow(c, out, t, dur, midi, from, vol) {
+  const end = t + dur, g = c.createGain(), bp = c.createBiquadFilter(), lp = c.createBiquadFilter(), lfo = c.createOscillator(), depth = c.createGain();
+  bp.type = 'bandpass'; bp.frequency.value = 1050; bp.Q.value = .75; lp.type = 'lowpass'; lp.frequency.value = 3400;
+  lfo.frequency.value = 5.1; depth.gain.setValueAtTime(0, t); depth.gain.linearRampToValueAtTime(0, t + Math.min(.32, dur * .4)); depth.gain.linearRampToValueAtTime(15, t + Math.min(.9, dur * .8));
+  lfo.connect(depth);
+  [-5, 5].forEach(cents => {
+    const o = c.createOscillator(); o.type = 'sawtooth'; o.detune.value = cents;
+    o.frequency.setValueAtTime(midiHz(from || midi), t); o.frequency.exponentialRampToValueAtTime(midiHz(midi), t + Math.min(.13, dur * .3));
+    depth.connect(o.detune); o.connect(bp); o.start(t); o.stop(end + .3);
+  });
+  g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(vol, t + Math.min(.14, dur * .35));
+  g.gain.setValueAtTime(vol, Math.max(t + .15, end - .16)); g.gain.linearRampToValueAtTime(.0001, end + .12);
+  bp.connect(lp); lp.connect(g); route(g, out, out.bow); lfo.start(t); lfo.stop(end + .3);
+}
+function playDrum(c, out, t, vol) {
+  const o = c.createOscillator(), g = c.createGain(), n = c.createBufferSource(), ng = c.createGain(), lp = c.createBiquadFilter();
+  o.frequency.setValueAtTime(104, t); o.frequency.exponentialRampToValueAtTime(43, t + .2);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + .72); o.connect(g); route(g, out, out.drum); o.start(t); o.stop(t + .75);
+  n.buffer = noiseBuffer(c); lp.type = 'lowpass'; lp.frequency.value = 520; ng.gain.setValueAtTime(vol * .42, t); ng.gain.exponentialRampToValueAtTime(.001, t + .09);
+  n.connect(lp); lp.connect(ng); route(ng, out, out.drum); n.start(t); n.stop(t + .11);
+}
+function playGong(c, out, t, vol) {
+  [[1, 1], [1.483, .72], [2.09, .55], [2.77, .34], [3.44, .24], [4.62, .13]].forEach(([r, a], i) => {
+    const o = c.createOscillator(), g = c.createGain(), life = 6.2 - i * .75;
+    o.type = 'sine'; o.frequency.setValueAtTime(92 * r * .985, t); o.frequency.linearRampToValueAtTime(92 * r, t + .5);
+    g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(vol * a, t + .05 + i * .03); g.gain.exponentialRampToValueAtTime(.0005, t + life);
+    o.connect(g); route(g, out, out.gong); o.start(t); o.stop(t + life + .05);
+  });
+}
+function renderBar(c, out, pos, t) {
+  const at = b => t + b * BEAT;
+  if (pos < 2) { // 도입: 징과 멀리서 다가오는 북
+    if (pos === 0) playGong(c, out, t + .05, .13);
+    const r = pos ? 45 : 45;
+    [[0, 0], [2, 7], [3, 12]].forEach(([b, iv]) => playPluck(c, out, at(b), r + iv, .42));
+    (pos ? [0, 1.5, 2, 3, 3.5] : [0, 2]).forEach((b, i) => playDrum(c, out, at(b), (pos ? .3 : .2) + i * .025));
+    return;
+  }
+  const i = (pos - 2) % 16, heroic = i >= 8, root = ROOTS[i], fifth = root % 12 === 4 ? 5 : 7, iv = [0, fifth, 12, 12 + fifth];
+  if (i === 0 || i === 8) playGong(c, out, t, i ? .12 : .08);
+  ARP.forEach(([b, k], n) => playPluck(c, out, at(b), root + iv[k], (n ? .3 : .46) * (heroic ? 1.08 : 1)));
+  const line = TUNE[i], prevBar = TUNE[(i + 15) % 16];
+  line.forEach(([b, d, m], n) => {
+    const from = n ? line[n - 1][2] : prevBar[prevBar.length - 1][2];
+    playBow(c, out, at(b), d * BEAT * .97, m, Math.abs(from - m) <= 5 ? from : 0, heroic ? .34 : .27);
+  });
+  if (heroic) { [0, 1.5, 2, 3, 3.5].forEach((b, n) => playDrum(c, out, at(b), n % 2 ? .3 : .46)); if (i === 15) [3.75].forEach(b => playDrum(c, out, at(b), .34)); }
+  else if (i % 2 === 0) playDrum(c, out, at(0), .28); else playDrum(c, out, at(2), .2);
+}
+
+function getAudio() {
+  if (audioCtx) return audioCtx;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  audioCtx = new AC();
+  const comp = audioCtx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; comp.attack.value = .006; comp.release.value = .2;
+  audioMaster = audioCtx.createGain(); audioMaster.gain.value = .72; audioMaster.connect(comp); comp.connect(audioCtx.destination);
+  audioCtx.addEventListener && audioCtx.addEventListener('statechange', () => { updateMusic(); syncSoundUI(); });
+  return audioCtx;
+}
+const audioReady = () => !!audioCtx && audioCtx.state === 'running';
+function startMusic() {
+  const c = audioCtx, out = musicGraph(c, audioMaster), now = c.currentTime;
+  out.bus.gain.setValueAtTime(.0001, now); out.bus.gain.exponentialRampToValueAtTime(1, now + 1.2);
+  const m = music = { out, pos: 0, next: now + .12, timer: 0 };
+  const tick = () => { while (music === m && m.next < c.currentTime + 1.6) { renderBar(c, out, m.pos, m.next); m.pos++; m.next += BAR; } };
+  tick(); m.timer = setInterval(tick, 400);
+}
+function stopMusic() {
+  const m = music; if (!m) return; music = null; clearInterval(m.timer);
+  const c = audioCtx, now = c.currentTime, g = m.out.bus.gain;
+  g.cancelScheduledValues(now); g.setValueAtTime(Math.max(.0001, g.value), now); g.exponentialRampToValueAtTime(.0001, now + 1.1);
+  setTimeout(() => { try { m.out.bus.disconnect(); } catch (e) { /* 이미 해제됨 */ } }, 1400);
+}
+function updateMusic() {
+  const should = soundOn && wantMusic && audioReady();
+  if (should && !music) startMusic(); else if (!should && music) stopMusic();
+}
+function setTitleMusic(on) { wantMusic = on; updateMusic(); syncSoundUI(); }
+function syncSoundUI() {
+  const label = soundOn ? '소리 끄기' : '소리 켜기';
+  ['sndBtn', 'tSnd'].forEach(id => { const b = document.getElementById(id); if (b) b.textContent = label; });
+  const h = document.getElementById('tHint');
+  if (h) { const need = soundOn && wantMusic && !audioReady(); h.classList.toggle('need', need); h.textContent = need ? '화면을 누르면 음악이 시작됩니다' : '화면을 누르면 건너뜁니다'; }
+}
+function toggleSound() {
+  soundOn = !soundOn; unlockTap = false;
+  try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (e) { /* 저장 불가 환경 */ }
+  if (soundOn && getAudio()) audioCtx.resume();
+  updateMusic(); syncSoundUI();
+}
+function takeUnlockTap() { const t = unlockTap; unlockTap = false; return t; }
+function unlockAudio() {
+  if (!soundOn || audioReady() || !getAudio()) return;
+  if (wantMusic) unlockTap = true;
+  audioCtx.resume().then(() => { updateMusic(); syncSoundUI(); }).catch(() => {});
+}
+function warDrum(n) {
+  if (!soundOn || !audioCtx) return;
+  const t = audioCtx.currentTime + .02, out = { dry: audioMaster, drum: audioMaster.context.createGain() };
+  out.drum.gain.value = 0; out.drum.connect(audioMaster);
+  for (let i = 0; i < n; i++) playDrum(audioCtx, out, t + i * .24, .62 - i * .08);
+}
+function clickSound() {
+  if (!soundOn || !audioCtx) return;
+  const c = audioCtx, t = c.currentTime + .004, o = c.createOscillator(), g = c.createGain(), hi = c.createOscillator(), hg = c.createGain();
+  o.type = 'triangle'; o.frequency.setValueAtTime(1180, t); o.frequency.exponentialRampToValueAtTime(460, t + .04);
+  g.gain.setValueAtTime(.2, t); g.gain.exponentialRampToValueAtTime(.001, t + .075); o.connect(g); g.connect(audioMaster); o.start(t); o.stop(t + .08);
+  hi.frequency.value = 2650; hg.gain.setValueAtTime(.045, t); hg.gain.exponentialRampToValueAtTime(.001, t + .028); hi.connect(hg); hg.connect(audioMaster); hi.start(t); hi.stop(t + .03);
+}
+
+['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, { capture: true, passive: true }));
+document.addEventListener('click', e => {
+  const b = e.target && e.target.closest && e.target.closest('button');
+  if (b && !b.disabled && b.id !== 'tGo' && b.id !== 'tSnd') clickSound();
+}, true);
+document.addEventListener('visibilitychange', () => {
+  if (!audioCtx) return;
+  if (document.hidden) audioCtx.suspend(); else if (soundOn) audioCtx.resume();
+});
+window.addEventListener('DOMContentLoaded', syncSoundUI);
 
 </script>
 <script>
@@ -2989,16 +3143,12 @@ function tbEnd() {
     items.forEach(it => setStroke(it, 1));
     root.querySelectorAll('.tInk').forEach(g => g.removeAttribute('mask'));
   }
-  function drum(n) {
-    if (typeof bgmTimer === 'undefined' || !bgmTimer || !audioCtx) return;
-    for (let i = 0; i < n; i++) { tone(62, i * .24, .42, 'sine', .22); tone(120, i * .24, .1, 'triangle', .06); }
-  }
   function finish(instant) {
     if (done || !root) return;
     done = true; cancelAnimationFrame(raf); timers.forEach(clearTimeout); timers = [];
     revealAll(); root.classList.add('written');
     const step = instant ? 0 : 1;
-    later(() => { root.classList.add('sealed'); drum(1); }, 260 * step);
+    later(() => { root.classList.add('sealed'); warDrum(1); }, 260 * step);
     later(() => root.classList.add('ready'), 760 * step);
     later(() => { const b = $('tGo'); if (b) b.focus({ preventScroll: true }); }, 900 * step);
   }
@@ -3016,7 +3166,6 @@ function tbEnd() {
     };
     raf = requestAnimationFrame(frame);
   }
-  function syncSound() { const b = $('tSnd'), s = $('sndBtn'); if (b && s) b.textContent = s.textContent; }
   let muralCache = null;
   function putMural(cv) {
     if (muralCache) { cv.getContext('2d').drawImage(muralCache, 0, 0); return; }
@@ -3025,11 +3174,11 @@ function tbEnd() {
   function closeTitle() {
     if (!root || root.classList.contains('menu')) return;
     done = true; timers.forEach(clearTimeout); timers = []; cancelAnimationFrame(raf);
-    drum(3); root.classList.add('menu'); showStart();
+    warDrum(3); root.classList.add('menu'); showStart();
   }
   // 시나리오·세력 선택 화면의 배경: 타이틀 벽화를 그대로 잇는다
   window.showMenuBg = function () {
-    $('modal').classList.add('menu');
+    $('modal').classList.add('menu'); setTitleMusic(true);
     if (root) { root.classList.add('menu'); return; }
     try {
       done = true;
@@ -3041,7 +3190,7 @@ function tbEnd() {
     } catch (e) { /* 벽화 없이도 메뉴는 동작 */ }
   };
   window.hideMenuBg = function () {
-    $('modal').classList.remove('menu');
+    $('modal').classList.remove('menu'); setTitleMusic(false);
     document.documentElement.classList.remove('titling');
     if (!root) return;
     const el = root; root = null; el.classList.add('leaving');
@@ -3058,7 +3207,7 @@ function tbEnd() {
           <svg class="tSeal" viewBox="0 0 1000 1000" aria-hidden="true"><rect x="30" y="30" width="940" height="940" rx="70" fill="#a3231a" stroke="#e7c489" stroke-width="22"/><rect x="85" y="85" width="830" height="830" rx="36" fill="none" stroke="#f3dfb8" stroke-width="16"/><g fill="#f7e8c8"><path transform="translate(125 95) scale(.75 .41)" d="${GLYPH['天']}"/><path transform="translate(125 500) scale(.75 .41)" d="${GLYPH['下']}"/></g></svg></h1>
           <p class="tName">NATION 3</p><p class="tSub">난세에 일어선 영웅들, 천하를 다투다</p>
           <div class="tBtns"><button id="tGo">천하로 나아가다</button><button id="tSnd"></button></div></div>
-        <p class="tHint">화면을 누르면 건너뜁니다</p>`;
+        <p class="tHint" id="tHint">화면을 누르면 건너뜁니다</p>`;
       document.body.appendChild(root); document.documentElement.classList.add('titling');
       root.querySelectorAll('.tGlyph').forEach((svg, i) => {
         const ch = TITLE_CHARS[i];
@@ -3068,10 +3217,10 @@ function tbEnd() {
           const it = { el, len, w, ch }; items.push(it); setStroke(it, 0);
         });
       });
-      syncSound();
-      root.addEventListener('click', () => finish(true));
+      setTitleMusic(true);
+      root.addEventListener('click', () => { if (!takeUnlockTap()) finish(true); });
       $('tGo').addEventListener('click', e => { e.stopPropagation(); closeTitle(); });
-      $('tSnd').addEventListener('click', e => { e.stopPropagation(); toggleSound(); syncSound(); drum(2); });
+      $('tSnd').addEventListener('click', e => { e.stopPropagation(); toggleSound(); });
       const still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
       requestAnimationFrame(() => setTimeout(() => {
         if (!root) return;

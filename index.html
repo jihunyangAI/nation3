@@ -113,6 +113,7 @@
   #tSnd { min-height:44px; color:#e8d7b0; background:rgba(20,11,6,.72); border-color:#7a6236; }
   .tHint { position:absolute; left:0; right:0; bottom:max(7px,env(safe-area-inset-bottom)); margin:0; text-align:center; color:#d9c8a2; font-size:12px; opacity:.72; text-shadow:0 1px 3px #000; transition:opacity .4s; pointer-events:none; }
   #title.written .tHint { opacity:0; }
+  #title .tHint.need { opacity:.95; color:#f4dfae; }
   #title::after { content:""; position:absolute; inset:0; background:rgba(10,5,3,.34); opacity:0; pointer-events:none; transition:opacity .7s ease; }
   #title.menu { z-index:9; cursor:default; }
   #title.menu::after { opacity:1; }
@@ -169,7 +170,7 @@
   <h1>nation3</h1>
   <span id="date"></span>
   <span id="summary"></span>
-  <button id="sndBtn" onclick="toggleSound()">소리 켜기</button>
+  <button id="sndBtn" onclick="toggleSound()">소리 끄기</button>
   <button onclick="showInfo()">정세</button>
   <button onclick="showStart()">새 게임</button>
   <button id="endBtn" onclick="endTurn()">턴 종료 ▶</button>
@@ -188,6 +189,7 @@
 <script src="systems.js"></script>
 <script src="features.js"></script>
 <script src="battle.js"></script>
+<script src="audio.js"></script>
 <script src="title.js"></script>
 </body>
 </html>

@@ -305,7 +305,7 @@ function tbClick(x, y) {
   if (s.winner) return;
   if (u && u.alive && u.side === me && v && v.side !== me) {
     const r = mode === 'fire' ? tbFire(s, u, v) : mode === 'conf' ? tbConfuse(s, u, v) : mode === 'duel' ? tbDuel(s, u, v) : tbAttack(s, u, v);
-    if (r) { sfx(mode === 'fire' ? 'fire' : 'hit'); TB.mode = null; return tbDraw(); }
+    if (r) { TB.mode = null; return tbDraw(); }
   }
   TB.mode = null;
   if (v) TB.sel = v.id;
@@ -334,7 +334,6 @@ function tbAuto() {
 function tbRetreat() { const { s, me } = TB; s.winner = other(me); tbNote(s, '아군이 전장에서 물러났습니다.'); tbDraw(); }
 function tbEnd() {
   const { s, resolve, me } = TB;
-  if (s.winner === me) sfx('win');
   tbApply(s);
   TB = null;
   $('modalBox').classList.remove('big');

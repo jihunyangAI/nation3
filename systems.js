@@ -514,36 +514,6 @@ function portrait(o, size) {
   return `<svg class="face" width="${size}" height="${size}" viewBox="0 0 12 12" shape-rendering="crispEdges">${px.join('')}</svg>`;
 }
 
-let audioCtx = null, bgmTimer = null;
-function tone(freq, t, len, type, vol) {
-  const a = audioCtx, o = a.createOscillator(), g = a.createGain();
-  o.type = type; o.frequency.value = freq;
-  g.gain.setValueAtTime(vol, a.currentTime + t);
-  g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + t + len);
-  o.connect(g); g.connect(a.destination);
-  o.start(a.currentTime + t); o.stop(a.currentTime + t + len);
-}
-function sfx(kind) {
-  if (!bgmTimer) return;
-  if (kind === 'hit') tone(110, 0, 0.12, 'square', 0.06);
-  if (kind === 'fire') { tone(240, 0, 0.2, 'sawtooth', 0.05); tone(120, 0.08, 0.25, 'sawtooth', 0.04); }
-  if (kind === 'win') [523, 659, 784].forEach((f, i) => tone(f, i * 0.12, 0.2, 'square', 0.05));
-}
-function toggleSound() {
-  if (bgmTimer) { clearInterval(bgmTimer); bgmTimer = null; $('sndBtn').textContent = '소리 켜기'; return; }
-  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-  audioCtx.resume();
-  const scale = [220, 247, 294, 330, 392, 440, 494, 587], tune = [0, 2, 3, 5, 4, 3, 2, 0, 3, 4, 6, 5, 7, 5, 4, 2];
-  let i = 0;
-  const step = () => {
-    tone(scale[tune[i % tune.length]], 0, 0.32, 'triangle', 0.05);
-    if (i % 4 === 0) tone(scale[tune[i % tune.length] % 3] / 2, 0, 0.7, 'square', 0.018);
-    i++;
-  };
-  step(); bgmTimer = setInterval(step, 380);
-  $('sndBtn').textContent = '소리 끄기';
-}
-
 // ===================== 화면: 명령 아이콘 =====================
 const CMD_ICONS = {
   farm: '<rect x="1" y="11" width="14" height="4" fill="#8a5a2c"/><path d="M2 12h2v1H2zM7 13h2v1H7zM12 12h2v1h-2z" fill="#5f3d1c"/><rect x="7" y="5" width="2" height="6" fill="#5fae4c"/><path d="M8 7C5 7 3 5 3 2c3 0 5 2 5 5zM8 6c0-3 2-5 5-5 0 3-2 5-5 5z" fill="#7fcb62"/>',
